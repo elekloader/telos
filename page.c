@@ -19,8 +19,12 @@
 
 #define ROWS_SHOWN  5                    /* rows under the title bar, 10 pixels each */
 
+#ifdef TELOS_DT2                         /* the II's text call takes flags, not a length: 0, plain */
+#define TEXTF(bmp, font, x, y, maxlen, ...) fw_textf(bmp, font, x, y, 0, __VA_ARGS__)
+#else
 typedef int32_t (*text_fn)(void *bmp, const void *font, int32_t x, int32_t y, int32_t maxlen, const char *fmt, ...);
 #define TEXTF ((text_fn)fw_textf)
+#endif
 
 static uint8_t open, dirty, eat;        /* eat: a key whose release the page still takes */
 static int32_t sel, top, acc;

@@ -41,8 +41,9 @@ HEAD = struct.Struct('>4sHHIIII8x')
 
 # The store's place on each device TELOS runs on: 2 MB of the Digitone mk1's eMMC that no stock code
 # reaches (README, "The store"). telos.h's TS_SECTOR and TS_SECTORS are the same.
-# The Digitakt mk1's is a file on its +Drive (/telos/store, digitakt/store.c): over USB only.
-STORE = {'digitone-mk1': (0x380000, 0x1000), 'digitakt-mk1': (None, 0x1000)}
+# The Digitakt mk1's and Digitakt II's are a file on the +Drive (/telos/store, digitakt/store.c): over
+# USB only.
+STORE = {'digitone-mk1': (0x380000, 0x1000), 'digitakt-mk1': (None, 0x1000), 'digitakt-mk2': (None, 0x1000)}
 
 
 class _Dev:

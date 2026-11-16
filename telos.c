@@ -21,7 +21,17 @@ extern char core_desc[];
 void dl_flush(void);
 extern void core_param_install(void) __attribute__((weak));   /* core-dn1 5.4; 0 on older cores */
 
-#ifdef TELOS_DT1
+#if defined(TELOS_DT2)
+/* The Digitakt II has no bulk area and no sample pool in its DDR: the scratch is RAM no OS instruction
+ * names, between the DSP buffers and the boot stack (elekloader's devices/digitakt_mk2.py): the staging
+ * buffer in the profile's ddr-low area, the heap between core's area and the boot stack's top 128 KB.
+ * Used only during the link, at ev_fs_ready, before any mod runs. */
+#define STAGING      ((u8 *)0x47E80000)
+#define STAGING_SIZE 0x80000u            /* 512 KB: the largest file one boot reads */
+#define HEAP         ((u8 *)0x47F40000)
+#define HEAP_SIZE    0xA0000u            /* 640 KB: the linker's pools and records */
+#define CRASH_TICKS  300                 /* ev_tick: about 30 times a second, as on the mk1 (unmeasured) */
+#elif defined(TELOS_DT1)
 /* The Digitakt has no bulk area: the scratch is the sample pool's top, above core's stock copy
  * (0x47800000, about 2.4 MB), below the pool's end (0x47BAF640; 1.54 0x47BBF640). Nothing is in the
  * pool before the first sample loads, after ev_fs_ready. */
@@ -190,7 +200,10 @@ int dl_site_ok(u32 addr, u32 len) { return addr >= IMAGE_LO && addr + len <= (u3
  * core's stock copy at 0x44200000 are only used during the link, before any mod runs. */
 int dl_region_ok(u32 lo, u32 hi)
 {
-#ifdef TELOS_DT1
+#if defined(TELOS_DT2)
+    return (lo >= 0x47E7B000u && hi <= 0x47F00000u)       /* ddr-low */
+        || (lo >= 0x47F00000u && hi <= 0x47F40000u);      /* ddr: core's 256 KB */
+#elif defined(TELOS_DT1)
     return lo >= 0x47BC0000u && hi <= 0x47C00000u;          /* ddr: core's 256 KB (no bulk area) */
 #else
     return (lo >= 0x44000000u && hi <= 0x47be0000u)       /* bulk */
@@ -201,6 +214,12 @@ int dl_region_ok(u32 lo, u32 hi)
 /* Stock bytes: core-dn1 5.4 copies the OS image before the OS runs (core_stock_info: where, bytes, from
  * 0x40000400); the OS changes some of its data before the join, so the copy is read where it covers. On
  * an older core, RAM as it is at the join. The descriptor's shadow goes over either (dlink.c). */
+#ifdef TELOS_DT2                         /* core-dt2 1.1 keeps no copy of the OS: no room for one */
+void dl_stock_read(u8 *dst, u32 a, u32 n)
+{
+    dl_memcpy(dst, (const void *)a, n);
+}
+#else
 extern const struct core_stock_info core_stock_info __attribute__((weak));   /* core3.h */
 
 void dl_stock_read(u8 *dst, u32 a, u32 n)
@@ -210,6 +229,7 @@ void dl_stock_read(u8 *dst, u32 a, u32 n)
     else
         dl_memcpy(dst, (const void *)a, n);
 }
+#endif
 void dl_site_saving(u32 addr, u32 len) { (void)addr; (void)len; }
 
 u32 telos_irq_off(void);

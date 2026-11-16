@@ -19,8 +19,12 @@
 #define EV_KEY(ev)   (*(uint32_t *)((char *)(ev) + 12))
 #define EV_FLAGS(ev) (*(uint32_t *)((char *)(ev) + 16))
 
+#ifdef TELOS_DT2                         /* the II's text call takes flags, not a length: 0, plain */
+#define TEXTF(bmp, font, x, y, maxlen, ...) fw_textf(bmp, font, x, y, 0, __VA_ARGS__)
+#else
 typedef int32_t (*text_fn)(void *bmp, const void *font, int32_t x, int32_t y, int32_t maxlen, const char *fmt, ...);
 #define TEXTF ((text_fn)fw_textf)
+#endif
 
 extern const char core_desc[];
 extern volatile uint8_t telos_dir_busy;
