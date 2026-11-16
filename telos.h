@@ -21,8 +21,13 @@
 #define TELOS_H
 
 #include "vendor/drive-loader/dl.h"
-#if defined(TELOS_DT2)                   /* the Digitakt II: the mk1's file store and keys (TELOS_DT1 too) */
+#if defined(TELOS_DT2) || defined(TELOS_DN2)
+#define TELOS_MK2                        /* the Digitakt II and Digitone II: the mk1 Digitakt's project lists (TELOS_DT1 too) */
+#endif
+#if defined(TELOS_DT2)                   /* the Digitakt II: the mk1's file store */
 #include "digitakt-mk2/core.h"
+#elif defined(TELOS_DN2)                 /* the Digitone II: raw sectors (digitone2/store.c) */
+#include "digitone-mk2/core.h"
 #elif defined(TELOS_DT1)
 #include "digitakt-mk1/core3.h"
 #else
@@ -36,8 +41,8 @@ int ts_write(u32 sector, u32 bytes, const void *buf);
 int ts_create(void);                     /* FORMAT: makes the store where it must be made (0, or < 0) */
 
 /* The keys, as the firmware's key events give them (the Digitakt's are one lower; the Digitakt II's
- * are its panel codes, in another order). */
-#if defined(TELOS_DT2)
+ * and Digitone II's are their panel codes, in another order). */
+#if defined(TELOS_MK2)
 #define KEY_TEMPO   9
 #define KEY_PLAY    20
 #define KEY_STOP    21

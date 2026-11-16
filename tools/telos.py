@@ -43,7 +43,8 @@ HEAD = struct.Struct('>4sHHIIII8x')
 # reaches (README, "The store"). telos.h's TS_SECTOR and TS_SECTORS are the same.
 # The Digitakt mk1's and Digitakt II's are a file on the +Drive (/telos/store, digitakt/store.c): over
 # USB only.
-STORE = {'digitone-mk1': (0x380000, 0x1000), 'digitakt-mk1': (None, 0x1000), 'digitakt-mk2': (None, 0x1000)}
+STORE = {'digitone-mk1': (0x380000, 0x1000), 'digitakt-mk1': (None, 0x1000), 'digitakt-mk2': (None, 0x1000),
+         'digitone-mk2': (0x7FE000, 0x1000)}
 
 
 class _Dev:
