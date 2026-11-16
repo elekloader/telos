@@ -12,17 +12,7 @@
  * back to SETTINGS. While the page is open it takes every key but PLAY, STOP and TEMPO.
  */
 #include "telos.h"
-#include "digitone-mk1/core3.h"
 
-#define KEY_TEMPO   9
-#define KEY_PLAY    11
-#define KEY_STOP    12
-#define KEY_YES     13
-#define KEY_NO      14
-#define KEY_UP      15
-#define KEY_DOWN    16
-#define KEY_LEFT    17
-#define KEY_RIGHT   18
 #define EV_KEY(ev)   (*(uint32_t *)((char *)(ev) + 12))
 #define EV_FLAGS(ev) (*(uint32_t *)((char *)(ev) + 16))
 #define EV_DELTA(ev) (*(int32_t *)((char *)(ev) + 16))
@@ -109,10 +99,13 @@ void telos_page_open(void)
     dirty = 1;
 }
 
+volatile uint32_t telos_lastkey;         /* the last key event, key << 8 | flags: for checking a port's codes */
+
 int telos_key(void *brain, void *ev)
 {
     uint32_t key = EV_KEY(ev), fl = EV_FLAGS(ev);
     (void)brain;
+    telos_lastkey = key << 8 | (fl & 0xFF);
     if (!open) {
         if (eat && key == eat) {         /* NO's release: SETTINGS would close on it */
             if (!(fl & 1))
@@ -168,11 +161,11 @@ void telos_draw(void *bmp, void *ctrl)
     if (!open)
         return;
     fw_fillrect(bmp, 0, 0, 127, 63, 0);
-    TEXTF(bmp, fw_font_title, 2, 56, -1, "MODS (TELOS)");
+    TEXTF(bmp, FONT_TITLE, 2, 56, -1, "MODS (TELOS)");
     if (telos_dir_ok) {
         for (i = 0; i < telos_dir.n; i++)
             used += (telos_dir.e[i].size + 1023) / 1024;
-        TEXTF(bmp, fw_font_title, 84, 56, -1, "%dK/2M", (int)used);
+        TEXTF(bmp, FONT_TITLE, 84, 56, -1, "%dK/2M", (int)used);
     }
     fw_fillrect(bmp, 0, 54, 127, 63, -1);        /* the title bar, inverted */
     for (i = top, y = 44; i < rows() && i < top + ROWS_SHOWN; i++, y -= 10) {
@@ -230,6 +223,7 @@ void telos_page_tick(void *ctrl)
  * firmware's constructor 0x400dc59a (1.43) builds it: +0 vtable, +4 height, +8 width, +12 words a row,
  * +16 the pixels, +20 the mask (one word a row, bit 31 the left pixel), +24 a byte 0. The vtable is
  * ICON_VTABLE (mod.json's defsym, 1.44's in its port). */
+#ifndef TELOS_DT1
 extern const char ICON_VTABLE[];
 static const uint32_t gear_px[9] = {0x14000000, 0x5D000000, 0x3E000000, 0xE3800000, 0x63000000,
                                     0xE3800000, 0x3E000000, 0x5D000000, 0x14000000};
@@ -244,3 +238,10 @@ void telos_row_draw(void *payload, void *item, void *bmp, int32_t x, int32_t y)
     (void)payload; (void)item;
     fw_blit(bmp, &gear, x, y, 0);
 }
+#else
+/* The Digitakt's SETTINGS rows have no icon. */
+void telos_row_draw(void *payload, void *item, void *bmp, int32_t x, int32_t y)
+{
+    (void)payload; (void)item; (void)bmp; (void)x; (void)y;
+}
+#endif

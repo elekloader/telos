@@ -1,0 +1,46 @@
+{
+ "id": "site-check",
+ "version": "0.1",
+ "title": "SITE CHECK",
+ "category": "Test",
+ "license": "GPL-2.0-or-later",
+ "author": "irpina",
+ "description": "A TELOS test: one code site of its own (the view controller's set-dirty routine), counting its calls after the bytes SITE.",
+ "device": "digitakt-mk1",
+ "os": "1.53",
+ "sources": [
+  "site.s"
+ ],
+ "defsym": {
+  "SET_DIRTY": "0x400ca356"
+ },
+ "sites": [
+  {
+   "addr": "0x400ca356",
+   "stock": "7001206f0004",
+   "op": "jmp",
+   "target": "sc_dirty"
+  }
+ ],
+ "ports": {
+  "1.54": {
+   "defsym": {
+    "SET_DIRTY": "0x400ca57e"
+   },
+   "sites": [
+    {
+     "addr": "0x400ca57e",
+     "stock": "7001206f0004",
+     "op": "jmp",
+     "target": "sc_dirty"
+    }
+   ]
+  }
+ },
+ "requires": [
+  "core"
+ ],
+ "resources": {
+  "core": "4.5"
+ }
+}

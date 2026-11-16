@@ -41,7 +41,8 @@ HEAD = struct.Struct('>4sHHIIII8x')
 
 # The store's place on each device TELOS runs on: 2 MB of the Digitone mk1's eMMC that no stock code
 # reaches (README, "The store"). telos.h's TS_SECTOR and TS_SECTORS are the same.
-STORE = {'digitone-mk1': (0x380000, 0x1000)}
+# The Digitakt mk1's is a file on its +Drive (/telos/store, digitakt/store.c): over USB only.
+STORE = {'digitone-mk1': (0x380000, 0x1000), 'digitakt-mk1': (None, 0x1000)}
 
 
 class _Dev:
@@ -90,6 +91,8 @@ class Card:
     """A card image, opened for TELOS's store."""
 
     def __init__(self, path, device_key='digitone-mk1'):
+        if STORE.get(device_key, (0,))[0] is None:
+            raise ModError('the TELOS store on %s is a file on its +Drive: use unit' % device_key)
         self.path = path
         self.dev, (self.first, self.sectors) = store_of(device_key)
 
@@ -288,7 +291,7 @@ def unit_main(args, port=None):
 
 
 def _unit_run(args, port):
-    u = Unit(port)
+    u = Unit(port, device_key=getattr(args, 'device', None) or 'digitone-mk1')
     inf = u.info()
     if args.cmd in ('info', 'list'):
         print('TELOS %s on the unit: %s, %d of %d mods, %d KB free (largest run %d KB) of %d KB' % (

@@ -14,16 +14,8 @@
  *
  * The block goes last in the project area (order 95): when the area is full, the pedals' settings keep
  * their room and the project has no list. */
-#include "digitone-mk1/core3.h"
 #include "telos.h"
 
-#define KEY_TEMPO   9
-#define KEY_PLAY    11
-#define KEY_STOP    12
-#define KEY_YES     13
-#define KEY_NO      14
-#define KEY_UP      15
-#define KEY_DOWN    16
 #define EV_KEY(ev)   (*(uint32_t *)((char *)(ev) + 12))
 #define EV_FLAGS(ev) (*(uint32_t *)((char *)(ev) + 16))
 
@@ -79,9 +71,9 @@ static void ix_load(void)
 {
     if (ix_ok)
         return;
-    if (fw_card_read(TS_SECTOR + IX_HEAD, 512, &ixh) == 0 && ixh.magic[0] == 'T' && ixh.magic[1] == 'L'
+    if (ts_read(IX_HEAD, 512, &ixh) == 0 && ixh.magic[0] == 'T' && ixh.magic[1] == 'L'
         && ixh.magic[2] == 'X' && ixh.magic[3] == '2' && ixh.n <= IX_MAX && ixh.pending <= PEND_MAX
-        && fw_card_read(TS_SECTOR + IX_FIRST, sizeof ix, ix) == 0) {
+        && ts_read(IX_FIRST, sizeof ix, ix) == 0) {
         ix_ok = 1;
         return;
     }
@@ -93,8 +85,8 @@ static void ix_load(void)
 
 static void ix_save(void)
 {
-    if (fw_card_write(TS_SECTOR + IX_HEAD, 512, &ixh) == 0)
-        fw_card_write(TS_SECTOR + IX_FIRST, sizeof ix, ix);
+    if (ts_write(IX_HEAD, 512, &ixh) == 0)
+        ts_write(IX_FIRST, sizeof ix, ix);
 }
 
 static const struct ix_entry *by_crc(u32 crc)
@@ -170,7 +162,7 @@ static int head_of(const struct ts_entry *e, char *id, char *ver, char *title)
     const u8 *p = sec, *end = sec + 512;
     char key[12];
     id[0] = ver[0] = title[0] = 0;
-    if (fw_card_read(TS_SECTOR + e->sector, 512, sec) != 0)
+    if (ts_read(e->sector, 512, sec) != 0)
         return 0;
     while (p < end && *p != '{')
         p++;
@@ -466,8 +458,53 @@ static void proj_loaded(int32_t found)
     run_build();                         /* a save writes what runs */
 }
 
+#ifdef TELOS_DT1
+/* ---- the Digitakt: no project data in core, so a project's list is a sector of TELOS's own --------------
+ * The list file (digitakt/store.c) holds a sector per project slot (0-127), keyed by the slot: core 4.5's
+ * ev_project_slot_write clears a slot's (a SAVE, or a CLEAR that makes a new project there), ev_project_saved
+ * writes what runs after a SAVE's write, and ev_project_loaded reads the loaded slot's. A project copied
+ * to another slot, or sent over Transfer, has no list there until it is saved. */
+int ts_proj_read(int32_t slot, void *buf);
+int ts_proj_write(int32_t slot, const void *buf);
+static u8 slotbuf[512] __attribute__((aligned(16)));
+
+void telos_proj_slot_write(void *fs, int32_t slot, int32_t ctx)
+{
+    (void)fs; (void)ctx;
+    if (slot < 0 || slot > 127)
+        return;
+    dl_memset(slotbuf, 0, sizeof slotbuf);
+    ts_proj_write(slot, slotbuf);
+}
+
+void telos_proj_saved(void *block, int32_t slot, int32_t ok)
+{
+    (void)block;
+    if (!ok || slot < 0 || slot > 127)
+        return;
+    run_build();
+    dl_memset(slotbuf, 0, sizeof slotbuf);
+    dl_memcpy(slotbuf, &pdata, sizeof pdata);
+    ts_proj_write(slot, slotbuf);
+}
+
+void telos_proj_loaded(int32_t slot, int32_t err)
+{
+    int found = 0;
+    dl_memset(&pdata, 0, sizeof pdata);
+    if (!err && slot >= 0 && slot <= 127 && ts_proj_read(slot, slotbuf) == 0) {
+        dl_memcpy(&pdata, slotbuf, sizeof pdata);
+        found = pdata.magic == 0x544d3031u && pdata.n <= SET_MAX;
+        if (!found)
+            dl_memset(&pdata, 0, sizeof pdata);
+    }
+    telos_pj[3] = (u32)slot;
+    proj_loaded(found);
+}
+#else
 const struct core_projdata telos_projdata = { 0x544c4d53u /* "TLMS" */, CORE_PROJDATA_VARIABLE | sizeof pdata,
                                               &pdata, proj_loaded };
+#endif
 
 /* telos.c, after the boot's link: the index, and what runs. */
 void telos_proj_boot(void)
@@ -548,7 +585,7 @@ void telos_proj_draw(void *bmp, void *ctrl)
     if (mode == M_NONE)
         return;
     fw_fillrect(bmp, 0, 0, 127, 63, 0);
-    TEXTF(bmp, fw_font_title, 2, 56, -1, "%s", mode == M_MODS_ASK ? "LOAD PROJECT MODS?" : "PROJECT MODS");
+    TEXTF(bmp, FONT_TITLE, 2, 56, -1, "%s", mode == M_MODS_ASK ? "LOAD PROJECT MODS?" : "PROJECT MODS");
     fw_fillrect(bmp, 0, 54, 127, 63, -1);
     for (i = scroll, y = 44; i < nlines && i < scroll + SHOWN; i++, y -= 10)
         TEXTF(bmp, fw_font5, 3, y, -1, "%s", lines[i]);
@@ -561,8 +598,21 @@ void telos_proj_draw(void *bmp, void *ctrl)
 
 void telos_proj_tick(void *ctrl)
 {
-    if (boot_load && ++boot_ticks > 300)
+#ifdef TELOS_DT1
+    if (boot_load && ++boot_ticks > 60) {         /* 2 s at 30 Hz */
+#else
+    if (boot_load && ++boot_ticks > 300) {
+#endif
         boot_load = 0;                   /* no load at boot (a new unit): the next one is the user's */
+#ifdef TELOS_DT1
+        if (ixh.pending) {               /* the Digitakt's boot loads its working copy without a load job:
+                                          * what a restart for a project's mods still has not right */
+            check(ixh.pend, ixh.pending, 1);
+            ixh.pending = 0;
+            ix_save();
+        }
+#endif
+    }
     if (dirty) {
         dirty = 0;
         *((unsigned char *)ctrl + 0x20) = 1;

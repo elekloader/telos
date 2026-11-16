@@ -1,0 +1,123 @@
+{
+ "id": "telos",
+ "version": "0.3",
+ "title": "TELOS",
+ "category": "Framework",
+ "license": "GPL-2.0-or-later",
+ "author": "irpina",
+ "description": "Mods kept on the Digitakt mk1 itself (OS 1.53 and 1.54, core 4.5 or newer): a store file on the +Drive (/telos/store) holds .elemod files, and at every boot TELOS links the ones switched on into the +Drive mods' area, with no new firmware. SETTINGS > MODS (TELOS) lists them: YES switches one on or off, APPLY & RESTART links the new set. A crash guard skips the mods once after a boot that didn't get 10 s in. Each project slot keeps the mods it was saved with (/telos/projects): loading one whose mods differ asks LOAD PROJECT MODS?. tools/telos.py puts mods in the store over USB MIDI SysEx (python tools/telos.py unit --device digitakt-mk1 ...).",
+ "device": "digitakt-mk1",
+ "os": "1.53",
+ "ports": {
+  "1.54": {
+   "defsym": {
+    "STR_CTOR": "0x4017af20",
+    "IMAGE_END": "0x4025da40"
+   }
+  }
+ },
+ "sources": [
+  "../telos.c",
+  "../page.c",
+  "../upload.c",
+  "../row.s",
+  "../flush.s",
+  "store.c",
+  "../vendor/drive-loader/dlink.c",
+  "../vendor/drive-loader/json.c",
+  "../projset.c"
+ ],
+ "cflags": [
+  "-Os",
+  "-fno-ipa-sra",
+  "-DDL_SITES",
+  "-DDL_REGIONS",
+  "-DTELOS_DT1"
+ ],
+ "defsym": {
+  "STR_CTOR": "0x4017ac20",
+  "IMAGE_END": "0x4025ca40"
+ },
+ "subscribe": [
+  {
+   "event": "ev_fs_ready",
+   "fn": "telos_fs_ready",
+   "order": 1
+  },
+  {
+   "event": "ev_sysex",
+   "fn": "telos_sysex",
+   "order": 1
+  },
+  {
+   "event": "ev_settings",
+   "fn": "telos_settings",
+   "order": 90
+  },
+  {
+   "event": "ev_key",
+   "fn": "telos_key",
+   "order": 1
+  },
+  {
+   "event": "ev_enc",
+   "fn": "telos_enc",
+   "order": 1
+  },
+  {
+   "event": "ev_tick",
+   "fn": "telos_tick",
+   "order": 90
+  },
+  {
+   "event": "ev_draw",
+   "fn": "telos_draw",
+   "order": 99
+  },
+  {
+   "event": "ev_crash",
+   "fn": "telos_crash",
+   "order": 1
+  },
+  {
+   "event": "ev_key",
+   "fn": "telos_proj_key",
+   "order": 0
+  },
+  {
+   "event": "ev_draw",
+   "fn": "telos_proj_draw",
+   "order": 100
+  },
+  {
+   "event": "ev_tick",
+   "fn": "telos_proj_tick",
+   "order": 91
+  },
+  {
+   "event": "ev_project_slot_write",
+   "fn": "telos_proj_slot_write",
+   "order": 1
+  },
+  {
+   "event": "ev_project_saved",
+   "fn": "telos_proj_saved",
+   "order": 1
+  },
+  {
+   "event": "ev_project_loaded",
+   "fn": "telos_proj_loaded",
+   "order": 1
+  }
+ ],
+ "resources": {
+  "core": "4.5"
+ },
+ "requires": [
+  "core"
+ ],
+ "weak": [
+  "core_stock_info",
+  "core_tasks"
+ ]
+}

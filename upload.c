@@ -27,7 +27,6 @@
  *   0A FORMAT   an empty directory in both copies (the files' sectors are left as they are)
  */
 #include "telos.h"
-#include "digitone-mk1/core3.h"
 
 #define PROTO       1
 #define CHUNK       512
@@ -207,6 +206,8 @@ static uint8_t format(void)
     telos_dir.sectors = TS_SECTORS;
     telos_dir.data = TS_DATA;
     telos_dir.seq = seq;
+    if (ts_create() != 0)                /* the Digitakt's store file */
+        return S_WRITE;
     dl_memset(telos_boot_st, 0, sizeof telos_boot_st[0] * TS_MAX);
     telos_boot_flags[0] = telos_boot_flags[1] = 0;
     if (telos_dir_write() != 0 || telos_dir_write() != 0)  /* both copies */
@@ -298,7 +299,7 @@ static void process(void)
         dl_memcpy(buf, req + 4, len);
         if (len < CHUNK)
             dl_memset(buf + len, 0, CHUNK - len);
-        if (fw_card_write(TS_SECTOR + up.sector + off / 512, CHUNK, buf) != 0) { st = S_WRITE; break; }
+        if (ts_write(up.sector + off / 512, CHUNK, buf) != 0) { st = S_WRITE; break; }
         up.next = off + len;
         wr32(body, up.next);
         n = 4;
@@ -311,7 +312,7 @@ static void process(void)
         if (up.next != up.size) { st = S_ORDER; break; }
         for (at = 0; at < up.size; at += sizeof buf) {     /* read back what the card has */
             u32 k = up.size - at < sizeof buf ? up.size - at : sizeof buf;
-            if (fw_card_read(TS_SECTOR + up.sector + at / 512, k, buf) != 0) { st = S_WRITE; break; }
+            if (ts_read(up.sector + at / 512, k, buf) != 0) { st = S_WRITE; break; }
             c = dl_crc32_add(c, buf, k);
         }
         if (st)
