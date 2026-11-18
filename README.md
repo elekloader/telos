@@ -13,7 +13,8 @@ firmware, and is meant for every device elekloader supports.
 |---|---|---|
 | Digitone mk1 and Digitone Keys (OS 1.43, 1.44) | 0.2 | runs on a unit (OS 1.44); OS 1.43 in digiemu's emulator only |
 | Octatrack MKI and MKII (OS 1.40C) | 0.4 | runs in octabam's emulator only; in [`octatrack/`](octatrack/README.md) |
-| Digitakt, Digitakt II, Digitone II, Analog Rytm, Analog Four, Model:Cycles, Model:Samples | | planned |
+| Analog Four MKII (OS 1.56) | 0.2 | built against stock 1.56 only; the A4 Drive Loader under TELOS's name, in [`a4mk2/`](a4mk2/README.md) |
+| Digitakt, Digitakt II, Digitone II, Analog Rytm, Analog Four MKI, Model:Cycles, Model:Samples | | planned |
 
 The rest of this page is the Digitone mk1's: OS 1.43 and 1.44, on elekloader's core-dn1 5.0 or newer.
 Version 0.2 has run on a Digitone mk1 with OS 1.44: three mods sent over USB (19 KB in 0.6 s),

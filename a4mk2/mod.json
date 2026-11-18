@@ -1,0 +1,91 @@
+{
+ "id": "drive-loader",
+ "version": "0.2",
+ "title": "TELOS",
+ "category": "Framework",
+ "license": "GPL-2.0-or-later",
+ "author": "Iced-Cream",
+ "description": "Mods kept on the Analog Four MKII itself (OS 1.56, core-a4mk2 0.9 or newer). It is elekloader's A4 Drive Loader (mods/drive-loader-a4mk2, vendored) under TELOS's name: a store in +Drive sectors stock never addresses (0x3000..0x7a000) holds .elemod files, sent through the unit's own Data router as /mods (Elektron Transfer, Elektroid or elekloader mods), and at every boot the ones chosen in /mods/active are linked into the +Drive mods' area, with no new firmware. SETTINGS > GLOBAL > MODS (TELOS), with TELOS's gear, opens the Drive Loader's MODS page. Hold [NO] at power-on to skip the mods once; a crash guard skips them once after a start that didn't get 10 s in. FORMAT +DRIVE empties the store.",
+ "device": "analog-four-mk2",
+ "os": "1.56",
+ "sources": [
+  "../vendor/drive-loader-a4mk2/store.c",
+  "../vendor/drive-loader-a4mk2/route.c",
+  "../vendor/drive-loader-a4mk2/route.s",
+  "../vendor/drive-loader-a4mk2/flush.s",
+  "../vendor/drive-loader-a4mk2/boot.c",
+  "../vendor/drive-loader-a4mk2/skip.c",
+  "../vendor/drive-loader-a4mk2/payload.c",
+  "../vendor/drive-loader-a4mk2/dlink.c",
+  "../vendor/drive-loader-a4mk2/json.c",
+  "../vendor/drive-loader-a4mk2/sha256.c",
+  "../vendor/drive-loader-a4mk2/dstore.c",
+  "../vendor/drive-loader-a4mk2/park.c",
+  "../vendor/drive-loader-a4mk2/page.c",
+  "row.s"
+ ],
+ "sites": [
+  {
+   "addr": "0x40095ec8",
+   "len": 8,
+   "stock_sha256": "c0076371d1b7c405fb88b81ca115c36ff69a17862593f24dcc443b06411bb905",
+   "op": "jsr",
+   "target": "dl_route_site"
+  },
+  {
+   "addr": "0x4001da16",
+   "len": 2,
+   "stock_sha256": "16119cec0c9bd0ee527bc127cab359c8d63963f92fd98acf348e652a91233dc2",
+   "op": "bytes",
+   "new": "6006",
+   "kind": "code"
+  }
+ ],
+ "subscribe": [
+  {
+   "event": "ev_boot_drive",
+   "fn": "dl_boot",
+   "order": 0
+  },
+  {
+   "event": "ev_drive_format",
+   "fn": "dl_format",
+   "order": 0
+  },
+  {
+   "event": "ev_tick",
+   "fn": "dl_tick",
+   "order": 99
+  },
+  {
+   "event": "ev_settings",
+   "fn": "dl_settings",
+   "order": 90
+  },
+  {
+   "event": "ev_key",
+   "fn": "dl_key",
+   "order": 1
+  },
+  {
+   "event": "ev_enc",
+   "fn": "dl_enc",
+   "order": 1
+  },
+  {
+   "event": "ev_draw",
+   "fn": "dl_draw",
+   "order": 95
+  }
+ ],
+ "resources": {
+  "core": "0.9",
+  "names": [
+   "data-route:mods",
+   "settings:MODS"
+  ]
+ },
+ "requires": [
+  "core"
+ ]
+}
