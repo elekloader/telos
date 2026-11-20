@@ -40,7 +40,8 @@ mk1's: UP and DOWN move, YES switches, NO goes back.
 ## Checked
 
 In the emulator of [ElekLabs/digikit](https://github.com/ElekLabs/digikit) (`digi-emud`, ColdFire
-only, a +Drive card image, USB SysEx through its `midi.usb.in`):
+only, a +Drive card image, USB SysEx through its `midi.usb.in`), with core-dt2 1.2 as elekloader's
+main has it:
 
 - format, two mods sent and listed; after `unit restart` both loaded, and site-check's own code site
   ran (its counter rose while the UI ran);
