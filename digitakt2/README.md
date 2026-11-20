@@ -1,11 +1,11 @@
 # telos on the Digitakt II
 
-OS 1.17, on elekloader's core-dt2 1.1 or newer. The same sources as the Digitakt mk1's (built with
+OS 1.17, on elekloader's core-dt2 1.2 or newer. The same sources as the Digitakt mk1's (built with
 `TELOS_DT1` and `TELOS_DT2`), so everything in the main README holds, with the differences below.
 
 ## Install
 
-Build your OS with core-dt2 1.1 and this folder's TELOS (elekloader needs the Digitakt II profile's
+Build your OS with core-dt2 1.2 and this folder's TELOS (elekloader needs the Digitakt II profile's
 `drive_align`), flash it, then send mods over USB:
 
 ```bash

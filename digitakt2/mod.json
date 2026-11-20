@@ -5,7 +5,7 @@
  "category": "Framework",
  "license": "GPL-2.0-or-later",
  "author": "irpina",
- "description": "Mods kept on the Digitakt II itself (OS 1.17, core 1.1 or newer): a store file on the +Drive (/telos/store) holds .elemod files, and at every boot TELOS links the ones switched on into the core's area, with no new firmware. SETTINGS > MODS (TELOS) lists them: YES switches one on or off, APPLY & RESTART links the new set. A crash guard skips the mods once after a boot that didn't get 10 s in. Each project slot keeps the mods it was saved with (/telos/projects): loading one whose mods differ asks LOAD PROJECT MODS?. tools/telos.py puts mods in the store over USB MIDI SysEx (python tools/telos.py unit --device digitakt-mk2 ...).",
+ "description": "Mods kept on the Digitakt II itself (OS 1.17, core-dt2 1.2 or newer): a store file on the +Drive (/telos/store) holds .elemod files, and at every boot TELOS links the ones switched on into the core's area, with no new firmware. SETTINGS > MODS (TELOS) lists them: YES switches one on or off, APPLY & RESTART links the new set. A crash guard skips the mods once after a boot that didn't get 10 s in. Each project slot keeps the mods it was saved with (/telos/projects): loading one whose mods differ asks LOAD PROJECT MODS?. tools/telos.py puts mods in the store over USB MIDI SysEx (python tools/telos.py unit --device digitakt-mk2 ...).",
  "device": "digitakt-mk2",
  "os": "1.17",
  "sources": [
@@ -104,7 +104,7 @@
   }
  ],
  "resources": {
-  "core": "1.1"
+  "core": "1.2"
  },
  "requires": [
   "core"

@@ -277,6 +277,34 @@ def test_the_request_frame():
     assert telos.parse_reply(raw) is None                                         # a request, not a reply
 
 
+
+def test_the_octatracks_card_folder():
+    """octatrack/: a CF card's folder takes the same commands; active names the files ON with their
+    CRC-32 (telos.c's dl_parse_active), in the order they were added, and list shows status.txt."""
+    with tempfile.TemporaryDirectory() as tmp:
+        card = os.path.join(tmp, 'card')
+        os.makedirs(card)
+        a = _mod(tmp, 'tuner-0.1.elemod', device='octatrack', title='TUNER')
+        b = _mod(tmp, 'scenes-p2-0.1.elemod', device='octatrack', title='SCENES P2')
+        assert telos.main([card, 'add', a, b]) == 0
+        mods = os.path.join(card, 'ELEKLOADER', 'MODS')
+        crc = lambda n: zlib.crc32(open(os.path.join(mods, n), 'rb').read()) & 0xFFFFFFFF
+        act = lambda: open(os.path.join(mods, 'active')).read()
+        assert act() == 'tuner-0.1.elemod %08x\nscenes-p2-0.1.elemod %08x\n' % (
+            crc('tuner-0.1.elemod'), crc('scenes-p2-0.1.elemod'))
+        assert telos.main([card, 'off', 'tuner-0.1.elemod']) == 0
+        assert act() == 'scenes-p2-0.1.elemod %08x\n' % crc('scenes-p2-0.1.elemod')
+        assert os.path.exists(os.path.join(mods, 'tuner-0.1.elemod'))          # off keeps the file
+        assert telos.main([card, 'remove', 'tuner-0.1.elemod']) == 0
+        assert not os.path.exists(os.path.join(mods, 'tuner-0.1.elemod'))
+        assert telos.main([card, 'add', _mod(tmp, 'dn.elemod')]) == 1          # a Digitone mk1 mod
+        with open(os.path.join(mods, 'status.txt'), 'w') as f:
+            f.write('telos 0.4: 1 loaded of 1, skip 0, tries 1\nscenes-p2 loaded\n')
+        assert telos.main([card, 'list']) == 0
+        assert telos.main([card, 'clear']) == 0 and act() == ''
+        assert telos.main([card, 'restart']) == 1
+
+
 if __name__ == '__main__':
     import traceback
     ok = failed = 0

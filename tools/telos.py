@@ -8,6 +8,13 @@ card image (an emulator's plusdrive.img), in the layout telos.h describes.
     python tools/telos.py CARD on NAME | off NAME | remove NAME
     python tools/telos.py CARD clear
 
+On the Octatrack (octatrack/), CARD is the CF card's folder (USB DISK MODE, or a card reader): the mods
+are files in /ELEKLOADER/MODS and /ELEKLOADER/MODS/active names the ones a start loads, a line each:
+the file's name, a space, its CRC-32 (zlib's, 8 hex digits). The same commands (list also shows the
+last start's status.txt).
+
+    python tools/telos.py E:/ list | add MOD.elemod ... [--off] | on NAME | off NAME | remove NAME | clear
+
 It needs elekloader importable (a checkout on PYTHONPATH, or installed) for its MIDI ports and SysEx
 packing.
 
@@ -148,7 +155,7 @@ class Card:
         return self._read(ARMED, 4) == b'ARMD'
 
 
-def mod_entry(path, dev, on=True):
+def mod_entry(path, dev, on=True, name_max=31):
     data = open(path, 'rb').read()
     try:
         m = json.loads(data)
@@ -160,12 +167,115 @@ def mod_entry(path, dev, on=True):
     if key != dev.key:
         raise ModError('%s: made for %s, not %s' % (path, key, dev.key))
     name = os.path.basename(path)
-    if len(name.encode()) > 31:
-        raise ModError('%s: the file name takes 31 bytes at most' % name)
+    if len(name.encode()) > name_max:
+        raise ModError('%s: the file name takes %d bytes at most' % (name, name_max))
     title = (m.get('title') or m.get('id') or name).upper()
     for cut in (' (', ':'):
         title = title.split(cut)[0]
     return {'name': name, 'title': title[:14], 'on': on, 'data': data}
+
+
+# ---- the Octatrack's CF card (octatrack/): files and an active list ---------------------------------
+
+class OtCard:
+    """The card's /ELEKLOADER/MODS: the .elemod files, and active, the ones a start links (telos.c)."""
+
+    def __init__(self, root):
+        self.root = root
+        self.dir = os.path.join(root, 'ELEKLOADER', 'MODS')
+        self.dev = _Dev('octatrack')
+
+    def _active(self):
+        try:
+            text = open(os.path.join(self.dir, 'active'), encoding='utf-8', errors='replace').read()
+        except OSError:
+            return []
+        out = []
+        for line in text.splitlines():
+            line = line.strip()
+            if line and not line.startswith('#'):
+                out.append(line.rsplit(None, 1)[0] if len(line.split()) > 1 else line)
+        return out
+
+    def read(self):
+        on = self._active()
+        names = sorted(n for n in (os.listdir(self.dir) if os.path.isdir(self.dir) else [])
+                       if n.lower().endswith('.elemod') and not n.startswith('.'))
+        entries = []
+        for n in names:
+            data = open(os.path.join(self.dir, n), 'rb').read()
+            try:
+                m = json.loads(data)
+                title = (m.get('title') or m.get('id') or n).upper()
+            except ValueError:
+                title = '?'
+            entries.append({'name': n, 'title': title[:14], 'on': n in on, 'size': len(data),
+                            'crc': zlib.crc32(data) & 0xFFFFFFFF})
+        order = {n: i for i, n in enumerate(on)}         # the active order kept, new ones after
+        entries.sort(key=lambda e: (order.get(e['name'], len(order)), e['name']))
+        return entries
+
+    def write(self, entries, new=()):
+        os.makedirs(self.dir, exist_ok=True)
+        keep = {e['name'] for e in entries}
+        for n in os.listdir(self.dir):
+            if n.lower().endswith('.elemod') and n not in keep:
+                os.remove(os.path.join(self.dir, n))
+        for e in new:
+            with open(os.path.join(self.dir, e['name']), 'wb') as f:
+                f.write(e['data'])
+        lines = []
+        for e in entries:
+            if e['on']:
+                data = e.get('data') or open(os.path.join(self.dir, e['name']), 'rb').read()
+                lines.append('%s %08x\n' % (e['name'], zlib.crc32(data) & 0xFFFFFFFF))
+        with open(os.path.join(self.dir, 'active'), 'w', encoding='utf-8', newline='\n') as f:
+            f.write(''.join(lines))
+
+    def status(self):
+        for n in ('status.txt', 'armed'):
+            try:
+                yield n, open(os.path.join(self.dir, n), encoding='utf-8', errors='replace').read()
+            except OSError:
+                pass
+
+
+def ot_main(args):
+    card = OtCard(args.card)
+    entries = card.read()
+    if args.cmd == 'list':
+        for e in entries:
+            print('  %-3s %-40s %-14s %7d bytes  crc %08x' % (
+                'ON' if e['on'] else 'off', e['name'], e['title'], e['size'], e['crc']))
+        print('%d mods, %d on' % (len(entries), sum(e['on'] for e in entries)))
+        for n, text in card.status():
+            if n == 'armed':
+                if text:
+                    print('armed is set: the next start skips the mods once')
+            else:
+                print('the last start (status.txt):')
+                print('  ' + text.rstrip().replace('\n', '\n  '))
+        return 0
+    new = []
+    if args.cmd == 'add':
+        for p in args.mods:
+            e = mod_entry(p, card.dev, on=not args.off, name_max=127)
+            entries = [x for x in entries if x['name'] != e['name']] + [e]
+            new.append(e)
+    elif args.cmd in ('on', 'off', 'remove'):
+        hit = [e for e in entries if e['name'] == args.name]
+        if not hit:
+            raise ModError('no %s on the card' % args.name)
+        if args.cmd == 'remove':
+            entries = [e for e in entries if e['name'] != args.name]
+        else:
+            hit[0]['on'] = args.cmd == 'on'
+    elif args.cmd == 'clear':
+        entries = []
+    card.write(entries, new)
+    print('WROTE %s: %d mods, %d on (they load at the next start)' % (
+        card.dir, len(entries), sum(e['on'] for e in entries)))
+    return 0
 
 
 # ---- the unit, over SysEx (mods/telos-dn1/upload.c) -----------------------------------------------
@@ -339,8 +449,8 @@ def _unit_run(args, port):
 def main(argv=None):
     ap = argparse.ArgumentParser(prog='python tools/telos.py',
                                  description="TELOS's store, on a unit or in a card image.")
-    ap.add_argument('card', help='the card image (an emulator\'s plusdrive.img), or unit: the unit over '
-                                 'USB MIDI SysEx')
+    ap.add_argument('card', help='the card image (an emulator\'s plusdrive.img), unit: the unit over '
+                                 'USB MIDI SysEx, or a folder: an Octatrack\'s CF card')
     ap.add_argument('--device', default='digitone-mk1')
     ap.add_argument('--port', default='Digitone', help='with unit: a MIDI port whose name has this in it')
     sub = ap.add_subparsers(dest='cmd', required=True)
@@ -357,6 +467,10 @@ def main(argv=None):
     try:
         if args.card == 'unit':
             return unit_main(args)
+        if os.path.isdir(args.card):
+            if args.cmd in ('info', 'restart', 'format'):
+                raise ModError('%s is for the Digitone mk1\'s unit' % args.cmd)
+            return ot_main(args)
         if args.cmd in ('info', 'restart', 'format'):
             raise ModError('%s is for the unit: python tools/telos.py unit %s' % (args.cmd, args.cmd))
         card = Card(args.card, args.device)
