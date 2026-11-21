@@ -21,6 +21,61 @@
 #define TELOS_H
 
 #include "vendor/drive-loader/dl.h"
+#if defined(TELOS_DT2) || defined(TELOS_DN2)
+#define TELOS_MK2                        /* the Digitakt II and Digitone II: the mk1 Digitakt's project lists (TELOS_DT1 too) */
+#endif
+#if defined(TELOS_DT2)                   /* the Digitakt II: the mk1's file store */
+#include "digitakt-mk2/core.h"
+#elif defined(TELOS_DN2)                 /* the Digitone II: raw sectors (digitone2/store.c) */
+#include "digitone-mk2/core.h"
+#elif defined(TELOS_DT1)
+#include "digitakt-mk1/core3.h"
+#else
+#include "digitone-mk1/core3.h"
+#endif
+
+/* The store's sectors, from its start (0 .. TS_SECTORS - 1): 0, or < 0. The Digitone's are raw eMMC
+ * sectors from TS_SECTOR; the Digitakt's a file on the +Drive (digitakt/store.c). */
+int ts_read(u32 sector, u32 bytes, void *buf);
+int ts_write(u32 sector, u32 bytes, const void *buf);
+int ts_create(void);                     /* FORMAT: makes the store where it must be made (0, or < 0) */
+
+/* The keys, as the firmware's key events give them (the Digitakt's are one lower; the Digitakt II's
+ * and Digitone II's are their panel codes, in another order). */
+#if defined(TELOS_MK2)
+#define KEY_TEMPO   9
+#define KEY_PLAY    20
+#define KEY_STOP    21
+#define KEY_YES     10
+#define KEY_NO      12
+#define KEY_UP      11
+#define KEY_DOWN    14
+#define KEY_LEFT    13
+#define KEY_RIGHT   15
+#define FONT_TITLE  fw_font5
+#elif defined(TELOS_DT1)
+#define KEY_TEMPO   8
+#define KEY_PLAY    10
+#define KEY_STOP    11
+#define KEY_YES     12
+#define KEY_NO      13
+#define KEY_UP      14
+#define KEY_DOWN    15
+#define KEY_LEFT    16
+#define KEY_RIGHT   17
+#define FONT_TITLE  fw_font5
+#else
+#define KEY_TEMPO   9
+#define KEY_PLAY    11
+#define KEY_STOP    12
+#define KEY_YES     13
+#define KEY_NO      14
+#define KEY_UP      15
+#define KEY_DOWN    16
+#define KEY_LEFT    17
+#define KEY_RIGHT   18
+#define FONT_TITLE  fw_font_title
+#endif
 
 #define TS_SECTOR     0x380000u          /* tools/telos.py's STORE */
 #define TS_SECTORS    0x1000u            /* 2 MB */

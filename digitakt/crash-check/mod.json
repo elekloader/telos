@@ -1,0 +1,30 @@
+{
+ "id": "crash-check",
+ "version": "0.1",
+ "title": "CRASH CHECK",
+ "category": "Test",
+ "license": "GPL-2.0-or-later",
+ "author": "irpina",
+ "description": "A TELOS test: crashes the unit on its 30th tick, for the crash guard.",
+ "device": "digitakt-mk1",
+ "os": "1.53",
+ "sources": [
+  "crash.s"
+ ],
+ "subscribe": [
+  {
+   "event": "ev_tick",
+   "fn": "cc_tick",
+   "order": 50
+  }
+ ],
+ "requires": [
+  "core"
+ ],
+ "resources": {
+  "core": "4.5"
+ },
+ "ports": {
+  "1.54": {}
+ }
+}

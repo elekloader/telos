@@ -16,17 +16,53 @@
  * only what it would find at power-on. What the menu needs after the link is copied out first.
  */
 #include "telos.h"
-#include "digitone-mk1/core3.h"
 
 extern char core_desc[];
 void dl_flush(void);
 extern void core_param_install(void) __attribute__((weak));   /* core-dn1 5.4; 0 on older cores */
 
+#if defined(TELOS_DN2)
+/* The Digitone II: RAM no OS instruction names, above its DMA buffers and below core's area (elekloader's
+ * devices/digitone_mk2.py: a canary over 0x46710000-0x48000000 held in digikit's emulator). Used only
+ * during the link, at ev_card_ready, before any mod runs. */
+#define STAGING      ((u8 *)0x47000000)
+#define STAGING_SIZE 0x80000u            /* 512 KB: the largest file one boot reads */
+#define HEAP         ((u8 *)0x47080000)
+#define HEAP_SIZE    0x100000u           /* 1 MB: the linker's pools and records */
+#define CRASH_TICKS  300                 /* ev_tick: about 30 times a second, as on the mk1 (unmeasured) */
+#elif defined(TELOS_DT2)
+/* The Digitakt II has no bulk area and no sample pool in its DDR: the scratch is RAM no OS instruction
+ * names, between the DSP buffers and the boot stack (elekloader's devices/digitakt_mk2.py): the staging
+ * buffer in the profile's ddr-low area, the heap between core's area and the boot stack's top 128 KB.
+ * Used only during the link, at ev_fs_ready, before any mod runs. */
+#define STAGING      ((u8 *)0x47E80000)
+#define STAGING_SIZE 0x80000u            /* 512 KB: the largest file one boot reads */
+#define HEAP         ((u8 *)0x47F40000)
+#define HEAP_SIZE    0xA0000u            /* 640 KB: the linker's pools and records */
+#define CRASH_TICKS  300                 /* ev_tick: about 30 times a second, as on the mk1 (unmeasured) */
+#elif defined(TELOS_DT1)
+/* The Digitakt has no bulk area: the scratch is the sample pool's top, above core's stock copy
+ * (0x47800000, about 2.4 MB), below the pool's end (0x47BAF640; 1.54 0x47BBF640). Nothing is in the
+ * pool before the first sample loads, after ev_fs_ready. */
+#define STAGING      ((u8 *)0x47A60000)
+#define STAGING_SIZE 0x80000u            /* 512 KB: the largest file one boot reads */
+#define HEAP         ((u8 *)0x47AE0000)
+#define HEAP_SIZE    0xC0000u            /* 768 KB: the linker's pools and records */
+#define CRASH_TICKS  300                 /* ev_tick runs 30 times a second: 10 s */
+#else
 #define STAGING      ((u8 *)0x44000000)  /* the bulk area's start: scratch at the join (above) */
 #define STAGING_SIZE 0x80000u            /* 512 KB: the largest file one boot reads */
 #define HEAP         ((u8 *)0x44080000)
 #define HEAP_SIZE    0x100000u           /* 1 MB: the linker's pools and records */
 #define CRASH_TICKS  200                 /* ev_tick runs about 20 times a second: 10 s */
+#endif
+
+#ifndef TELOS_DT1
+/* The Digitone's store: raw eMMC sectors from TS_SECTOR. */
+int ts_read(u32 sector, u32 bytes, void *buf) { return fw_card_read(TS_SECTOR + sector, bytes, buf); }
+int ts_write(u32 sector, u32 bytes, const void *buf) { return fw_card_write(TS_SECTOR + sector, bytes, buf); }
+int ts_create(void) { return 0; }
+#endif
 
 struct ts_dir telos_dir;
 struct ts_boot telos_boot_st[TS_MAX];
@@ -90,7 +126,7 @@ s32 dl_read_file(const char *name, u8 *buf, u32 max)
                                           * and in digiemu's cold boot never finished in time */
         for (at = 0; at < e->size; at += k) {
             k = e->size - at < 0x4000u ? e->size - at : 0x4000u;
-            if (fw_card_read(TS_SECTOR + e->sector + at / 512, k, buf + at) != 0)
+            if (ts_read(e->sector + at / 512, k, buf + at) != 0)
                 return -3;
         }
     }
@@ -173,13 +209,28 @@ int dl_site_ok(u32 addr, u32 len) { return addr >= IMAGE_LO && addr + len <= (u3
  * core's stock copy at 0x44200000 are only used during the link, before any mod runs. */
 int dl_region_ok(u32 lo, u32 hi)
 {
+#if defined(TELOS_DN2)
+    return lo >= 0x47F00000u && hi <= 0x47F40000u;          /* ddr: core's 256 KB */
+#elif defined(TELOS_DT2)
+    return (lo >= 0x47E7B000u && hi <= 0x47F00000u)       /* ddr-low */
+        || (lo >= 0x47F00000u && hi <= 0x47F40000u);      /* ddr: core's 256 KB */
+#elif defined(TELOS_DT1)
+    return lo >= 0x47BC0000u && hi <= 0x47C00000u;          /* ddr: core's 256 KB (no bulk area) */
+#else
     return (lo >= 0x44000000u && hi <= 0x47be0000u)       /* bulk */
         || (lo >= 0x47be0000u && hi <= 0x47c00000u);      /* ddr */
+#endif
 }
 
 /* Stock bytes: core-dn1 5.4 copies the OS image before the OS runs (core_stock_info: where, bytes, from
  * 0x40000400); the OS changes some of its data before the join, so the copy is read where it covers. On
  * an older core, RAM as it is at the join. The descriptor's shadow goes over either (dlink.c). */
+#ifdef TELOS_MK2                         /* core-dt2 and core-dn2 keep no copy of the OS */
+void dl_stock_read(u8 *dst, u32 a, u32 n)
+{
+    dl_memcpy(dst, (const void *)a, n);
+}
+#else
 extern const struct core_stock_info core_stock_info __attribute__((weak));   /* core3.h */
 
 void dl_stock_read(u8 *dst, u32 a, u32 n)
@@ -189,6 +240,7 @@ void dl_stock_read(u8 *dst, u32 a, u32 n)
     else
         dl_memcpy(dst, (const void *)a, n);
 }
+#endif
 void dl_site_saving(u32 addr, u32 len) { (void)addr; (void)len; }
 
 u32 telos_irq_off(void);
@@ -291,7 +343,7 @@ static int dir_read(void)
 {
     int k, ok = 0;
     for (k = 0; k < 2; k++) {
-        if (fw_card_read(TS_SECTOR + (k ? TS_DIR_B : TS_DIR_A), TS_DIR_BYTES, dirbuf) != 0)
+        if (ts_read((k ? TS_DIR_B : TS_DIR_A), TS_DIR_BYTES, dirbuf) != 0)
             continue;
         if (!dir_valid((const struct ts_dir *)dirbuf))
             continue;
@@ -312,7 +364,7 @@ int telos_dir_write(void)
     telos_dir.crc = 0;
     telos_dir.crc = dl_crc32((const u8 *)&telos_dir, TS_DIR_BYTES);
     dl_memcpy(dirbuf, &telos_dir, TS_DIR_BYTES);
-    r = fw_card_write(TS_SECTOR + (to ? TS_DIR_B : TS_DIR_A), TS_DIR_BYTES, dirbuf);
+    r = ts_write((to ? TS_DIR_B : TS_DIR_A), TS_DIR_BYTES, dirbuf);
     if (r == 0)
         cur_copy = to;
     return r;
@@ -328,7 +380,7 @@ static u32 armed_ticks;
 
 static int guard_read(void)
 {
-    if (fw_card_read(TS_SECTOR + TS_ARMED, 512, guard) != 0)
+    if (ts_read(TS_ARMED, 512, guard) != 0)
         return 0;
     return guard[0] == 'A' && guard[1] == 'R' && guard[2] == 'M' && guard[3] == 'D';
 }
@@ -339,7 +391,7 @@ static void guard_write(int on)
     if (on) {
         guard[0] = 'A'; guard[1] = 'R'; guard[2] = 'M'; guard[3] = 'D';
     }
-    fw_card_write(TS_SECTOR + TS_ARMED, 512, guard);
+    ts_write(TS_ARMED, 512, guard);
 }
 
 void telos_page_tick(void *ctrl);
@@ -439,14 +491,31 @@ static void boot(void)
     }
     armed = 1;
     armed_ticks = 0;
+#ifndef TELOS_DT1                        /* the Digitakt's core has no core_param_install: its weak import
+                                          * would resolve to core_zero, which is not 0, and be called */
     if (core_param_install)              /* core-dn1 5.4: the linked mods' parameter slots */
         core_param_install();
+#endif
     for (i = 0; i < dl_inits_n; i++)
         if (dl_inits[i])
             ((void (*)(void))dl_inits[i])();
 }
 
 void telos_proj_boot(void);
+
+#ifdef TELOS_DT1
+/* The Digitakt: the store is a file, so the boot waits for the file system (core 4.5's ev_fs_ready). */
+void telos_fs_ready(int32_t mounted)
+{
+    if (!mounted) {
+        dl_skip_reason = DL_SKIP_DRIVE;
+        telos_state[3] = DL_SKIP_DRIVE;
+        return;
+    }
+    boot();
+    telos_proj_boot();
+}
+#endif
 
 void telos_card_ready(int32_t status)
 {
