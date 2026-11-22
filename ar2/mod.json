@@ -1,0 +1,71 @@
+{
+ "id": "drive-loader",
+ "version": "0.1",
+ "title": "TELOS",
+ "category": "Framework",
+ "license": "GPL-2.0-or-later",
+ "author": "Iced-Cream",
+ "description": "Mods kept on the Analog Rytm MKII itself (OS 1.74, core-ar2 0.18 or newer). It is elekloader's Drive Loader (mods/drive-loader-ar2, vendored) under TELOS's name: .elemod files in the +Drive's /mods folder, sent through the unit's own Data router (Elektron Transfer, Elektroid or elekloader mods), and at every boot the ones chosen in /mods/active are linked into the +Drive mods' area, with no new firmware. SETTINGS > GLOBAL > MODS (TELOS), with TELOS's gear, opens the Drive Loader's MODS page; a * marks a mod with saved data, and APPLY & RESTART reboots into a changed build, keeping the working project. Hold [NO] at power-on to skip the mods once; a crash guard skips them once after a start that didn't get 10 s in.",
+ "device": "analog-rytm-mk2",
+ "os": "1.74",
+ "sources": [
+  "../vendor/drive-loader-ar2/fs.c",
+  "../vendor/drive-loader-ar2/route.c",
+  "../vendor/drive-loader-ar2/route.s",
+  "../vendor/drive-loader-ar2/flush.s",
+  "../vendor/drive-loader-ar2/boot.c",
+  "../vendor/drive-loader-ar2/dlink.c",
+  "../vendor/drive-loader-ar2/skip.c",
+  "../vendor/drive-loader-ar2/payload.c",
+  "../vendor/drive-loader-ar2/json.c",
+  "../vendor/drive-loader-ar2/sha256.c",
+  "../vendor/drive-loader-ar2/dstore.c",
+  "../vendor/drive-loader-ar2/page.c",
+  "../vendor/drive-loader-ar2/park.c",
+  "row.s"
+ ],
+ "sites": [
+  {
+   "addr": "0x400a005e",
+   "stock": "700113c0419438c8",
+   "op": "jsr",
+   "target": "dl_route_site"
+  }
+ ],
+ "subscribe": [
+  {
+   "event": "ev_boot_drive",
+   "fn": "dl_boot",
+   "order": 0
+  },
+  {
+   "event": "ev_tick",
+   "fn": "dl_tick",
+   "order": 99
+  },
+  {
+   "event": "ev_settings",
+   "fn": "dl_settings",
+   "order": 90
+  },
+  {
+   "event": "ev_key",
+   "fn": "dl_key",
+   "order": 1
+  },
+  {
+   "event": "ev_enc",
+   "fn": "dl_enc",
+   "order": 1
+  }
+ ],
+ "resources": {
+  "core": "0.18",
+  "names": [
+   "data-route:mods"
+  ]
+ },
+ "requires": [
+  "core"
+ ]
+}

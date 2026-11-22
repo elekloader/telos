@@ -1,11 +1,11 @@
 {
  "id": "drive-loader",
- "version": "0.2",
+ "version": "0.3",
  "title": "TELOS",
  "category": "Framework",
  "license": "GPL-2.0-or-later",
  "author": "Iced-Cream",
- "description": "Mods kept on the Analog Four MKII itself (OS 1.56, core-a4mk2 0.9 or newer). It is elekloader's A4 Drive Loader (mods/drive-loader-a4mk2, vendored) under TELOS's name: a store in +Drive sectors stock never addresses (0x3000..0x7a000) holds .elemod files, sent through the unit's own Data router as /mods (Elektron Transfer, Elektroid or elekloader mods), and at every boot the ones chosen in /mods/active are linked into the +Drive mods' area, with no new firmware. SETTINGS > GLOBAL > MODS (TELOS), with TELOS's gear, opens the Drive Loader's MODS page. Hold [NO] at power-on to skip the mods once; a crash guard skips them once after a start that didn't get 10 s in. FORMAT +DRIVE empties the store.",
+ "description": "Mods kept on the Analog Four MKII itself (OS 1.56, core-a4mk2 0.10 or newer). It is elekloader's A4 Drive Loader (mods/drive-loader-a4mk2, vendored) under TELOS's name: a store in +Drive sectors stock never addresses (0x3000..0x7a000) holds .elemod files, sent through the unit's own Data router as /mods (Elektron Transfer, Elektroid or elekloader mods), and at every boot the ones chosen in /mods/active are linked into the +Drive mods' area, with no new firmware. SETTINGS > GLOBAL > MODS (TELOS), with TELOS's gear, opens the Drive Loader's MODS page. Hold [NO] at power-on to skip the mods once; a crash guard skips them once after a start that didn't get 10 s in. FORMAT +DRIVE empties the store.",
  "device": "analog-four-mk2",
  "os": "1.56",
  "sources": [
@@ -79,7 +79,7 @@
   }
  ],
  "resources": {
-  "core": "0.9",
+  "core": "0.10",
   "names": [
    "data-route:mods",
    "settings:MODS"
